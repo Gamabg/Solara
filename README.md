@@ -1,2 +1,2 @@
 # solara
-Site Solara. 
+Site Solara dedicado a Loja Solara Energia em Movimento. 
