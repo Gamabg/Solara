@@ -1,0 +1,47 @@
+.page { min-height: 100vh; padding: 24px clamp(18px, 4vw, 56px) 56px; background: #f3ead9; }
+.topbar { display: flex; align-items: center; justify-content: space-between; max-width: 1080px; margin: 0 auto; padding-bottom: 20px; border-bottom: 1px solid rgba(28, 25, 23, 0.16); }
+.brand { font: 600 22px var(--display); letter-spacing: 0.06em; }
+.brand span { margin-left: 8px; color: #7a5c36; font: 700 10px var(--body); letter-spacing: 0.14em; }
+.session { display: flex; align-items: center; gap: 14px; font-size: 13px; }
+.dashboard { max-width: 1080px; margin: 0 auto; }
+.heading { padding: 38px 0 24px; }
+.heading h1, .login h1 { font: 500 clamp(32px, 5vw, 48px)/1.1 var(--display); }
+.heading > p:last-child, .login > p:not(.eyebrow) { margin-top: 10px; color: #6b6359; }
+.eyebrow { margin-bottom: 8px; color: #7a5c36; font-size: 11px; font-weight: 700; letter-spacing: 0.14em; }
+.panel, .login { padding: clamp(20px, 4vw, 36px); border: 1px solid rgba(28, 25, 23, 0.1); border-radius: 18px; background: #fffaf1; box-shadow: 0 8px 30px rgba(28, 25, 23, 0.05); }
+.panel { margin-bottom: 24px; }
+.panel h2 { margin-bottom: 22px; font: 500 26px/1.2 var(--display); }
+.login { max-width: 480px; margin: 10vh auto 24px; }
+.form { display: grid; gap: 16px; }
+.form label, .categoryFields label { display: grid; gap: 6px; font-size: 13px; font-weight: 600; }
+.form input:not([type="checkbox"]):not([type="color"]), .form textarea, .form select, .categoryFields input { width: 100%; min-height: 44px; padding: 10px 12px; border: 1px solid rgba(28, 25, 23, 0.2); border-radius: 8px; background: #fff; color: #1c1917; font: 400 14px var(--body); }
+.form textarea { resize: vertical; }
+.form input[type="color"] { width: 58px; height: 40px; padding: 3px; border: 1px solid rgba(28, 25, 23, 0.2); border-radius: 8px; background: #fff; }
+.formRow { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.primaryButton, .secondaryButton, .dangerButton { min-height: 40px; padding: 9px 16px; border: 0; border-radius: 100px; font: 600 13px var(--body); cursor: pointer; }
+.primaryButton { background: #1c1917; color: #f3ead9; }
+.secondaryButton { border: 1px solid rgba(28, 25, 23, 0.25); background: transparent; color: #1c1917; }
+.dangerButton { border: 1px solid #9d342c; background: transparent; color: #8b241d; }
+.primaryButton:disabled { cursor: wait; opacity: 0.6; }
+.checkbox { display: flex !important; grid-template-columns: auto 1fr; align-items: center; gap: 9px !important; font-size: 14px !important; font-weight: 400 !important; }
+.checkbox input { width: 17px; height: 17px; accent-color: #1c1917; }
+.productList { list-style: none; }
+.productList li { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 14px 0; border-top: 1px solid rgba(28, 25, 23, 0.12); }
+.productList li div:first-child { display: grid; gap: 4px; }
+.productList li span { color: #6b6359; font-size: 13px; }
+.fieldset, .visibility { display: grid; gap: 14px; padding: 16px; border: 1px solid rgba(28, 25, 23, 0.16); border-radius: 10px; }
+.fieldset legend, .visibility legend { padding: 0 6px; font-size: 13px; font-weight: 600; }
+.categoryFields { display: grid; grid-template-columns: 1fr 2fr auto; align-items: end; gap: 12px; }
+.error, .success, .notice { max-width: 1080px; margin: 0 auto 16px; padding: 12px 16px; border-radius: 8px; }
+.error { background: #fae6e3; color: #8b241d; }
+.success { background: #e4f2e4; color: #245b29; }
+.notice { margin-top: 36px; text-align: center; }
+.back { display: inline-block; margin-top: 20px; color: #6b6359; font-size: 13px; text-decoration: underline; }
+.hiddenIcon { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.hiddenIcon svg { width: 1px; }
+@media (max-width: 680px) {
+  .formRow, .categoryFields { grid-template-columns: 1fr; }
+  .categoryFields { align-items: stretch; padding-bottom: 12px; border-bottom: 1px solid rgba(28, 25, 23, 0.12); }
+  .productList li { align-items: flex-start; flex-direction: column; }
+}

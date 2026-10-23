@@ -1,0 +1,10 @@
+.grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
+.card { position: relative; display: flex; flex-direction: column; justify-content: flex-end; aspect-ratio: 5 / 6; padding: 28px; border-radius: 24px; overflow: hidden; background: var(--bg); color: var(--fg); }
+.card::before { content: ''; position: absolute; top: -14%; right: -14%; width: 70%; aspect-ratio: 1; border-radius: 50%; background: var(--disc); transition: transform 0.5s ease; }
+.card:hover::before { transform: scale(1.1); }
+.sand { --bg: #d8c9a8; --disc: #e0a84c; --fg: var(--ink); }
+.sage { --bg: #b9c4b3; --disc: #f3ead9; --fg: var(--ink); }
+.ink { --bg: #1c1917; --disc: #e0a84c; --fg: var(--cream); }
+.title { position: relative; font-family: var(--display); font-weight: 500; font-size: clamp(28px, 3vw, 36px); line-height: 1.1; }
+.desc { position: relative; margin-top: 6px; font-size: 14px; opacity: 0.85; }
+@media (max-width: 900px) { .grid { grid-template-columns: 1fr; } .card { aspect-ratio: 16 / 10; } }

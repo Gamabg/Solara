@@ -1,0 +1,4 @@
+.section { padding-block: clamp(56px, 8vw, 96px); }
+.head { display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 8px 16px; margin-bottom: 36px; }
+.title { font-family: var(--display); font-weight: 500; font-size: clamp(28px, 3.6vw, 40px); letter-spacing: -0.01em; }
+.note { color: var(--muted); font-size: 14px; }

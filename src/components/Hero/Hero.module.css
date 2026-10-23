@@ -1,0 +1,13 @@
+.hero { padding-top: 20px; }
+.panel { position: relative; display: flex; align-items: flex-start; min-height: 580px; border-radius: 28px; overflow: hidden; background: #f1c98a; }
+.scene { position: absolute; inset: 0; width: 100%; height: 100%; }
+.sun { animation: rise 1.8s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+@keyframes rise { from { transform: translateY(170px); } to { transform: none; } }
+
+.text { position: relative; max-width: 640px; padding: clamp(28px, 5vw, 64px); }
+.title { font-family: var(--display); font-weight: 500; font-size: clamp(42px, 6.6vw, 88px); line-height: 1; letter-spacing: -0.02em; margin-bottom: 20px; text-wrap: balance; }
+.lead { max-width: 44ch; margin-bottom: 28px; font-size: 17px; color: #3b342c; }
+.cta { display: inline-block; padding: 15px 30px; border-radius: 100px; background: var(--ink); color: var(--cream); font-size: 15px; font-weight: 600; transition: transform 0.2s, background 0.2s; }
+.cta:hover { transform: translateY(-2px); background: #000; }
+
+@media (max-width: 900px) { .panel { min-height: 500px; } }

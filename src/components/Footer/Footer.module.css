@@ -1,0 +1,7 @@
+.footer { margin-top: 40px; padding: 56px 0 40px; background: var(--ink); color: rgba(255, 255, 255, 0.7); text-align: center; font-size: 13px; }
+.footer :focus-visible { outline-color: var(--sun); }
+.brand { display: block; font-family: var(--display); font-size: 22px; font-weight: 600; letter-spacing: 0.06em; color: #fff; }
+.tagline { margin-top: 4px; font-family: var(--display); font-style: italic; color: var(--sun); }
+.links { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px 24px; margin: 24px 0; }
+.links a:hover { color: #fff; }
+.copy { opacity: 0.8; }
