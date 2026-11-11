@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
 import { DEFAULT_STORE_CONTENT } from '../../data/storeContent'
-import { fromDatabaseProduct, isSupabaseConfigured, supabase } from '../../lib/supabase'
+import { ApiError, isApiConfigured, storeApi } from '../../lib/api'
 import { formatPrice } from '../../utils/format'
 import s from './AdminPanel.module.css'
+
+const storeUrl = import.meta.env.VITE_STORE_URL || '/'
 
 const EMPTY_PRODUCT = {
   name: '',
@@ -24,6 +26,9 @@ export default function AdminPanel() {
   const [checkingSession, setCheckingSession] = useState(true)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [newEmail, setNewEmail] = useState('')
+  const [newPassword, setNewPassword] = useState('')
   const [products, setProducts] = useState([])
   const [content, setContent] = useState(DEFAULT_STORE_CONTENT)
   const [productForm, setProductForm] = useState(EMPTY_PRODUCT)
@@ -32,110 +37,75 @@ export default function AdminPanel() {
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
 
-  const verifyAdmin = async (nextUser) => {
-    if (!nextUser || !supabase) return
-    setCheckingSession(true)
-    const { data, error: roleError } = await supabase
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', nextUser.id)
-      .eq('role', 'admin')
-      .maybeSingle()
-    if (roleError) {
-      setError(`Não foi possível verificar a permissão de administrador: ${getErrorMessage(roleError)}`)
-      await supabase.auth.signOut()
-      setUser(null)
-      setAuthorized(false)
-    } else if (!data) {
-      setError('Esta conta não tem permissão de administrador.')
-      await supabase.auth.signOut()
-      setUser(null)
-      setAuthorized(false)
-    } else {
-      setUser(nextUser)
-      setAuthorized(true)
-      setError('')
-    }
-    setCheckingSession(false)
-  }
-
   useEffect(() => {
-    if (!supabase) {
+    if (!isApiConfigured) {
       setCheckingSession(false)
       return undefined
     }
 
     let mounted = true
-    const restoreSession = async () => {
-      const { data, error: sessionError } = await supabase.auth.getSession()
-      if (!mounted) return
-      if (sessionError) {
-        setError(`Não foi possível recuperar a sessão: ${getErrorMessage(sessionError)}`)
-        setCheckingSession(false)
-      } else if (data.session?.user) {
-        await verifyAdmin(data.session.user)
-      } else {
-        setCheckingSession(false)
-      }
-    }
-    restoreSession()
-
-    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
-      if (!mounted) return
-      if (event === 'SIGNED_OUT') {
-        setUser(null)
-        setAuthorized(false)
-        setCheckingSession(false)
-      } else if (event === 'SIGNED_IN' && session?.user) {
-        window.setTimeout(() => {
-          if (mounted) verifyAdmin(session.user)
-        }, 0)
-      }
-    })
+    storeApi.getAdmin()
+      .then(({ user: nextUser }) => {
+        if (!mounted) return
+        setUser(nextUser)
+        setAuthorized(true)
+      })
+      .catch((sessionError) => {
+        if (!mounted) return
+        if (!(sessionError instanceof ApiError) || sessionError.status !== 401) {
+          setError(`Não foi possível recuperar a sessão: ${getErrorMessage(sessionError)}`)
+        }
+      })
+      .finally(() => {
+        if (mounted) setCheckingSession(false)
+      })
     return () => {
       mounted = false
-      listener.subscription.unsubscribe()
     }
   }, [])
 
   useEffect(() => {
-    if (!authorized || !supabase) return
+    if (!authorized) return
     const loadAdminData = async () => {
       const [productResult, contentResult] = await Promise.all([
-        supabase.from('products').select('*').order('created_at'),
-        supabase.from('store_content').select('value').eq('id', 'home').maybeSingle(),
+        storeApi.getAdminProducts(),
+        storeApi.getContent(),
       ])
-      if (productResult.error) throw productResult.error
-      if (contentResult.error) throw contentResult.error
-      setProducts(productResult.data.map(fromDatabaseProduct))
-      setContent({ ...DEFAULT_STORE_CONTENT, ...(contentResult.data?.value || {}) })
+      setProducts(productResult.products)
+      setContent({ ...DEFAULT_STORE_CONTENT, ...(contentResult.content || {}) })
     }
     loadAdminData().catch((loadError) => setError(`Não foi possível carregar o painel: ${getErrorMessage(loadError)}`))
   }, [authorized])
 
   const handleLogin = async (event) => {
     event.preventDefault()
-    if (!supabase) return
     setBusy(true)
     setError('')
-    const { data, error: loginError } = await supabase.auth.signInWithPassword({ email, password })
-    if (loginError) {
+    try {
+      const { user: nextUser } = await storeApi.login(email, password)
+      setUser(nextUser)
+      setAuthorized(true)
+      setPassword('')
+    } catch (loginError) {
       setError(`Não foi possível entrar: ${getErrorMessage(loginError)}`)
-    } else if (data.user) {
-      await verifyAdmin(data.user)
+    } finally {
+      setBusy(false)
     }
-    setBusy(false)
   }
 
   const handleLogout = async () => {
-    if (!supabase) return
-    const { error: logoutError } = await supabase.auth.signOut()
-    if (logoutError) setError(`Não foi possível encerrar a sessão: ${getErrorMessage(logoutError)}`)
+    try {
+      await storeApi.logout()
+      setUser(null)
+      setAuthorized(false)
+      setError('')
+    } catch (logoutError) {
+      setError(`Não foi possível encerrar a sessão: ${getErrorMessage(logoutError)}`)
+    }
   }
 
   const saveProduct = async (event) => {
     event.preventDefault()
-    if (!supabase) return
     setBusy(true)
     setError('')
     setMessage('')
@@ -143,25 +113,24 @@ export default function AdminPanel() {
       name: productForm.name.trim(),
       lines: productForm.lines.split('\n').map((line) => line.trim()).filter(Boolean),
       tone: productForm.tone,
-      color_label: productForm.colorLabel.trim(),
+      colorLabel: productForm.colorLabel.trim(),
       swatch: productForm.swatch,
       price: Number(productForm.price),
       active: productForm.active,
     }
-    const result = editingProductId
-      ? await supabase.from('products').update(product).eq('id', editingProductId)
-      : await supabase.from('products').insert(product)
-    if (result.error) {
-      setError(`Não foi possível salvar o produto: ${getErrorMessage(result.error)}`)
-    } else {
+    try {
+      if (editingProductId) await storeApi.updateProduct(editingProductId, product)
+      else await storeApi.createProduct(product)
       setMessage(editingProductId ? 'Produto atualizado.' : 'Produto adicionado.')
       setProductForm(EMPTY_PRODUCT)
       setEditingProductId(null)
-      const { data, error: reloadError } = await supabase.from('products').select('*').order('created_at')
-      if (reloadError) setError(`Produto salvo, mas a lista não pôde ser atualizada: ${getErrorMessage(reloadError)}`)
-      else setProducts(data.map(fromDatabaseProduct))
+      const { products: latestProducts } = await storeApi.getAdminProducts()
+      setProducts(latestProducts)
+    } catch (saveError) {
+      setError(`Não foi possível salvar o produto: ${getErrorMessage(saveError)}`)
+    } finally {
+      setBusy(false)
     }
-    setBusy(false)
   }
 
   const editProduct = (product) => {
@@ -179,34 +148,57 @@ export default function AdminPanel() {
   }
 
   const deleteProduct = async (product) => {
-    if (!supabase || !window.confirm(`Remover "${product.name}" da loja?`)) return
+    if (!window.confirm(`Remover "${product.name}" da loja?`)) return
     setError('')
     setMessage('')
-    const { error: deleteError } = await supabase.from('products').delete().eq('id', product.id)
-    if (deleteError) {
-      setError(`Não foi possível remover o produto: ${getErrorMessage(deleteError)}`)
-    } else {
+    try {
+      await storeApi.deleteProduct(product.id)
       setProducts((current) => current.filter((item) => item.id !== product.id))
       setMessage('Produto removido.')
       if (editingProductId === product.id) {
         setEditingProductId(null)
         setProductForm(EMPTY_PRODUCT)
       }
+    } catch (deleteError) {
+      setError(`Não foi possível remover o produto: ${getErrorMessage(deleteError)}`)
     }
   }
 
   const saveContent = async (event) => {
     event.preventDefault()
-    if (!supabase) return
     setBusy(true)
     setError('')
     setMessage('')
-    const { error: saveError } = await supabase
-      .from('store_content')
-      .upsert({ id: 'home', value: content }, { onConflict: 'id' })
-    if (saveError) setError(`Não foi possível salvar o conteúdo: ${getErrorMessage(saveError)}`)
-    else setMessage('Conteúdo da loja atualizado.')
-    setBusy(false)
+    try {
+      await storeApi.saveContent(content)
+      setMessage('Conteúdo da loja atualizado.')
+    } catch (saveError) {
+      setError(`Não foi possível salvar o conteúdo: ${getErrorMessage(saveError)}`)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const saveProfile = async (event) => {
+    event.preventDefault()
+    setBusy(true)
+    setError('')
+    setMessage('')
+    try {
+      const profile = { currentPassword }
+      if (newEmail.trim()) profile.email = newEmail.trim()
+      if (newPassword) profile.newPassword = newPassword
+      const { user: updatedUser } = await storeApi.updateProfile(profile)
+      setUser(updatedUser)
+      setCurrentPassword('')
+      setNewEmail('')
+      setNewPassword('')
+      setMessage('Perfil atualizado.')
+    } catch (profileError) {
+      setError(`Não foi possível atualizar o perfil: ${getErrorMessage(profileError)}`)
+    } finally {
+      setBusy(false)
+    }
   }
 
   const updateCategory = (categoryId, field, value) => {
@@ -218,14 +210,14 @@ export default function AdminPanel() {
     }))
   }
 
-  if (!isSupabaseConfigured) {
+  if (!isApiConfigured) {
     return (
       <main className={s.page}>
         <section className={s.login}>
-          <a className={s.back} href="/">← Voltar para a loja</a>
+          <a className={s.back} href={storeUrl}>← Voltar para a loja</a>
           <p className={s.eyebrow}>SOLARA · ADMINISTRAÇÃO</p>
-          <h1>Configure o acesso seguro</h1>
-          <p>Adicione as variáveis VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY ao arquivo .env.local e execute o schema SQL do projeto Supabase para ativar o painel.</p>
+          <h1>Configure a API da loja</h1>
+          <p>Configure VITE_API_URL para apontar para a API hospedada na Vercel. Em desenvolvimento, use o comando vercel dev para executar as funções da API localmente.</p>
         </section>
       </main>
     )
@@ -249,7 +241,7 @@ export default function AdminPanel() {
         <section className={s.login}>
           <p className={s.eyebrow}>ACESSO RESTRITO</p>
           <h1>Entrar no painel</h1>
-          <p>Use a conta de administrador criada no Supabase.</p>
+          <p>Use a conta administradora configurada para a API Solara.</p>
           <form className={s.form} onSubmit={handleLogin}>
             <label>E-mail<input type="email" autoComplete="username" value={email} onChange={(event) => setEmail(event.target.value)} required /></label>
             <label>Senha<input type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} required /></label>
@@ -350,11 +342,28 @@ export default function AdminPanel() {
               <button className={s.primaryButton} type="submit" disabled={busy}>{busy ? 'Salvando…' : 'Salvar conteúdo'}</button>
             </form>
           </section>
+
+          <section className={s.panel}>
+            <h2>Perfil do administrador</h2>
+            <p>Altere o e-mail ou a senha da sua conta. Confirme a senha atual para salvar.</p>
+            <form className={s.form} onSubmit={saveProfile}>
+              <label>Novo e-mail
+                <input type="email" autoComplete="email" value={newEmail} onChange={(event) => setNewEmail(event.target.value)} />
+              </label>
+              <label>Nova senha
+                <input type="password" autoComplete="new-password" minLength="12" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} />
+              </label>
+              <label>Senha atual
+                <input type="password" autoComplete="current-password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} required />
+              </label>
+              <button className={s.primaryButton} type="submit" disabled={busy}>{busy ? 'Salvando…' : 'Atualizar perfil'}</button>
+            </form>
+          </section>
         </div>
       )}
 
       {!checkingSession && error && !authorized && <p className={s.error} role="alert">{error}</p>}
-      <a className={s.back} href="/">← Voltar para a loja</a>
+      <a className={s.back} href={storeUrl}>← Voltar para a loja</a>
     </main>
   )
 }

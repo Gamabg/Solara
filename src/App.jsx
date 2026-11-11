@@ -5,36 +5,32 @@ import ProductGrid from './components/Products/ProductGrid'
 import Categories from './components/Categories/Categories'
 import Footer from './components/Footer/Footer'
 import CartDrawer from './components/CartDrawer'
-import AdminPanel from './components/admin/AdminPanel'
 import { PRODUCTS } from './data/products'
 import { DEFAULT_STORE_CONTENT } from './data/storeContent'
-import { fromDatabaseProduct, isSupabaseConfigured, supabase } from './lib/supabase'
+import { isApiConfigured, storeApi } from './lib/api'
 
 export default function App() {
-  const [products, setProducts] = useState(isSupabaseConfigured ? [] : PRODUCTS)
+  const [products, setProducts] = useState(isApiConfigured ? [] : PRODUCTS)
   const [content, setContent] = useState(DEFAULT_STORE_CONTENT)
   const [cart, setCart] = useState([])
   const [cartLoaded, setCartLoaded] = useState(false)
   const [cartOpen, setCartOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [storeError, setStoreError] = useState('')
-  const [storeLoading, setStoreLoading] = useState(isSupabaseConfigured)
+  const [storeLoading, setStoreLoading] = useState(isApiConfigured)
   const [cartError, setCartError] = useState('')
 
   useEffect(() => {
-    if (window.location.pathname === '/admin') return
-    if (!isSupabaseConfigured) return
+    if (!isApiConfigured) return
 
     const loadStore = async () => {
       const [productResult, contentResult] = await Promise.all([
-        supabase.from('products').select('*').eq('active', true).order('created_at'),
-        supabase.from('store_content').select('value').eq('id', 'home').maybeSingle(),
+        storeApi.getProducts(),
+        storeApi.getContent(),
       ])
-      if (productResult.error) throw productResult.error
-      if (contentResult.error) throw contentResult.error
-      setProducts(productResult.data.map(fromDatabaseProduct))
-      if (contentResult.data?.value) {
-        setContent({ ...DEFAULT_STORE_CONTENT, ...contentResult.data.value })
+      setProducts(productResult.products)
+      if (contentResult.content) {
+        setContent({ ...DEFAULT_STORE_CONTENT, ...contentResult.content })
       }
     }
 
@@ -44,7 +40,6 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    if (window.location.pathname === '/admin') return
     try {
       const savedCart = window.localStorage.getItem('solara-cart')
       if (savedCart) {
@@ -116,8 +111,6 @@ export default function App() {
         : item)
       .filter((item) => item.quantity > 0))
   }
-
-  if (window.location.pathname === '/admin') return <AdminPanel />
 
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0)
 

@@ -1,38 +1,71 @@
 # Solara
 
-Loja Solara Energia em Movimento, desenvolvida com React e Vite.
+Loja Solara Energia em Movimento, feita com React e Vite. A arquitetura nova usa PostgreSQL no Neon, uma API de funções da Vercel e um painel administrativo que pode ser publicado como um projeto Vercel separado.
 
-## Executar localmente
+## Arquitetura
+
+```text
+Site Solara ─────┐
+                 ├── API na Vercel ─── PostgreSQL no Neon
+Painel separado ─┘
+```
+
+O painel e o site usam a mesma API. O painel atualiza produtos e conteúdo; o site lê os dados dessa API. O administrador tem uma conta única, pode alterar o próprio e-mail/senha e gerenciar produtos, categorias, textos e áreas visíveis.
+
+## Preparar o banco e a conta
+
+1. Crie um banco PostgreSQL no [Neon](https://neon.tech/).
+2. No SQL Editor do Neon, execute [`database/schema.sql`](./database/schema.sql).
+3. Copie `.env.example` para `.env.local` e preencha as variáveis:
+   - `DATABASE_URL`: connection string do Neon.
+   - `AUTH_SECRET`: segredo aleatório com pelo menos 32 bytes. Gere um localmente com `node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"`.
+   - `SOURCE_SUPABASE_URL` e `SOURCE_SUPABASE_SERVICE_ROLE_KEY`: necessárias apenas para migrar os produtos e o conteúdo conhecidos do projeto atual.
+   - `ADMIN_EMAIL` e `ADMIN_PASSWORD`: usadas para criar a conta inicial. Escolha uma senha exclusiva com pelo menos 12 caracteres e no máximo 72 bytes.
+
+Mantenha essas variáveis em `.env.local` ou nas configurações privadas da Vercel. Nunca use o prefixo `VITE_` em credenciais do banco, segredo de sessão ou chave `service_role`, nem as envie ao navegador ou ao Git.
+
+## Migrar os dados conhecidos do Supabase
+
+Com o schema aplicado e as variáveis de origem e destino configuradas localmente, execute:
+
+```bash
+npm run migrate:supabase
+npm run create:admin
+```
+
+A migração copia `products` e `store_content` para o Neon sem apagar nem alterar o Supabase. Ela pode ser executada novamente e atualiza os registros pelos IDs existentes. Contas/senhas do Supabase não são migradas: crie uma nova conta administradora com `npm run create:admin`.
+
+O código deste projeto conhece essas duas tabelas e a tabela `user_roles` do schema antigo. Se o seu projeto Supabase tiver outras tabelas, arquivos no Storage ou dados fora desse schema, eles precisam ser inventariados e migrados separadamente. Faça e mantenha um backup do Supabase; só encerre o serviço antigo depois de validar a loja e o painel no Neon.
+
+## Publicar na Vercel
+
+Use o repositório atual em dois projetos da Vercel. Defina o diretório raiz como a raiz do repositório em ambos:
+
+### Projeto do painel
+
+- Comando de build: `npm run build:admin`
+- Diretório de saída: `dist-admin`
+- Variáveis privadas: `DATABASE_URL`, `AUTH_SECRET` e `ALLOWED_ORIGINS`.
+- `ALLOWED_ORIGINS` deve conter as origens exatas do painel e da loja, separadas por vírgula e sem barra final.
+- Como a pasta `api/` está na raiz, as funções da API são publicadas com esse projeto. O painel pode chamar `/api` na própria origem.
+- Configure `VITE_STORE_URL` com a URL pública da loja.
+
+### Projeto do site
+
+- Comando de build: `npm run build`
+- Diretório de saída: `dist`
+- Configure `VITE_API_URL` com a origem do projeto do painel e `VITE_ADMIN_URL` com a URL pública do painel.
+
+Em produção, prefira domínios próprios na mesma zona, por exemplo `loja.seudominio.com` e `admin.seudominio.com`. Isso evita problemas de cookies entre domínios `vercel.app`. A API usa cookie `HttpOnly`, exige origem permitida nas alterações e limita tentativas de login.
+
+## Executar e validar
 
 ```bash
 npm install
-npm run dev
-```
-
-Sem credenciais do Supabase, a loja usa os produtos de demonstração. A busca e a sacola funcionam no navegador; a sacola fica salva no armazenamento local. A finalização de pedidos ainda não está conectada a um meio de pagamento.
-
-## Configurar a loja e o painel administrativo
-
-1. Crie um projeto no [Supabase](https://supabase.com/).
-2. No SQL Editor do projeto, execute o conteúdo de [`supabase/schema.sql`](./supabase/schema.sql). O script cria as tabelas, os produtos iniciais e as políticas de segurança (RLS).
-3. Em **Authentication → Users**, crie o usuário administrador com o e-mail e a senha desejados. Desative o cadastro público em **Authentication → Sign In / Providers → Allow new users to sign up**.
-4. No SQL Editor, conceda o papel de administrador ao usuário criado, substituindo o e-mail:
-
-   ```sql
-   insert into public.user_roles (user_id, role)
-   select id, 'admin'
-   from auth.users
-   where email = 'admin@seudominio.com'
-   on conflict (user_id) do update set role = excluded.role;
-   ```
-
-5. Copie `.env.example` para `.env.local` e preencha `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` com os valores de **Project Settings → API**. Use somente a chave pública/anon no front-end; nunca coloque uma `service_role` key em variáveis `VITE_`.
-6. Reinicie o servidor Vite. O ícone de perfil abre `/admin`, onde o administrador pode entrar, adicionar/editar/remover produtos, alterar textos e categorias e mostrar/ocultar áreas da página.
-
-A autorização é conferida pelo Supabase Auth e pelas políticas RLS do banco; esconder a tela no navegador não é usado como controle de segurança. Cadastre apenas os administradores em **Authentication → Users** e em `user_roles`. Em hospedagens estáticas, configure o fallback de rotas para `index.html` para que `/admin` abra corretamente.
-
-## Build
-
-```bash
 npm run build
+npm run build:admin
 ```
+
+`npm run dev` executa o site de demonstração local. Para testar as funções da Vercel localmente, use o CLI da Vercel (`vercel dev`) depois de configurar as variáveis de ambiente.
+
+O carrinho continua salvo no navegador. Checkout, pagamentos, pedidos e upload de imagens não estão implementados neste projeto.

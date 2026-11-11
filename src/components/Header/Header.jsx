@@ -3,6 +3,8 @@ import { MENU, getVisibleMenu } from '../../data/menu'
 import Icon from '../ui/Icon'
 import s from './Header.module.css'
 
+const adminUrl = import.meta.env.VITE_ADMIN_URL
+
 export default function Header({ cartCount, onCartOpen, searchQuery, onSearchChange, showProducts, showCategories }) {
   const [megaOpen, setMegaOpen] = useState(false)
   const [activeKey, setActiveKey] = useState(MENU[0].key)
@@ -58,9 +60,11 @@ export default function Header({ cartCount, onCartOpen, searchQuery, onSearchCha
             >
               <Icon name="search" />
             </button>
-            <a className={s.iconBtn} href="/admin" aria-label="Acessar área administrativa">
-              <Icon name="user" />
-            </a>
+            {adminUrl && (
+              <a className={s.iconBtn} href={adminUrl} aria-label="Acessar área administrativa">
+                <Icon name="user" />
+              </a>
+            )}
             <button
               className={s.iconBtn}
               aria-label={`Abrir sacola, ${cartCount} ${cartCount === 1 ? 'item' : 'itens'}`}
